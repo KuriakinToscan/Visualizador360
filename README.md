@@ -38,7 +38,7 @@ Democratizar a visualização de imagens 360° dentro do ambiente SEI, transform
 1.  Abra o arquivo `360_Gerador.html` no Google Chrome ou Microsoft Edge.
 2.  Arraste a sua imagem 360° (proporção 2:1) para a área indicada.
 3.  Confira os metadados e o nome de saída.
-4.  **(Opcional)** Preencha o campo **"Descrição"** com um texto personalizado que aparecerá no cabeçalho do visualizador gerado. Caso deixe em branco, será usado o padrão `"IBAMA · INSPEÇÃO AMBIENTAL"`
+4.  **(Opcional)** Preencha o campo **"Descrição"** com um texto personalizado que aparecerá no cabeçalho do visualizador gerado. Caso deixe em branco, será usado o padrão `"IBAMA"`
 5.  Clique em **"Gerar Visualizador 360°"** e baixe o arquivo HTML final.
 
 ### 2. Anexar no SEI
