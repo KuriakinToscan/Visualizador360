@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Visualizador 360º</title>
+<title>Visualizador 360º com Metadados</title>
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<!-- Biblioteca para ler EXIF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 
@@ -109,6 +111,7 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 
 .meta-value{font-size:14px;color:#1a3b4e;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .meta-value.ok{color:var(--green);}
 .meta-value.warn{color:var(--amber);}
+.meta-value.na{color:#94a3b8;font-weight:400;}
 
 /* Configurações Finais */
 .field-label{font-size:12px;font-weight:600;color:var(--blue3);}
@@ -116,6 +119,11 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 
 .name-pre{padding:12px 16px;font-size:16px;color:var(--blue3);background:#eef3f9;}
 #output-name{flex:1;background:transparent;border:none;outline:none;padding:12px;font-size:14px;font-weight:500;color:#1f3b4c;}
 .name-suf{padding:12px 18px;font-size:14px;font-weight:600;color:var(--blue3);background:#eef3f9;}
+
+/* Novo campo de descrição */
+.desc-wrap{display:flex;align-items:center;background:#fff;border:1px solid var(--border2);border-radius:60px;overflow:hidden;}
+.desc-wrap .desc-icon{padding:12px 16px;font-size:16px;color:var(--blue3);background:#eef3f9;}
+#desc-input{flex:1;background:transparent;border:none;outline:none;padding:12px;font-size:14px;font-weight:500;color:#1f3b4c;}
 
 #progress-section{display:none;flex-direction:column;gap:7px;}
 #progress-section.visible{display:flex;}
@@ -168,9 +176,21 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 
 <div class="meta-item"><div class="meta-label">Tamanho</div><div class="meta-value" id="metaSize">-</div></div>
 <div class="meta-item"><div class="meta-label">Dimensões</div><div class="meta-value" id="metaDims">-</div></div>
 <div class="meta-item"><div class="meta-label">Proporção</div><div class="meta-value" id="metaRatio">-</div></div>
+<!-- Metadados EXIF -->
+<div class="meta-item"><div class="meta-label">Modelo do Drone</div><div class="meta-value" id="metaModel">-</div></div>
+<div class="meta-item"><div class="meta-label">Data/Hora</div><div class="meta-value" id="metaDateTime">-</div></div>
+<div class="meta-item" style="grid-column: span 2;"><div class="meta-label">Coordenadas GPS</div><div class="meta-value" id="metaGPS">-</div></div>
 </div>
 <div class="field-label">Nome do arquivo de saída</div>
 <div class="name-wrap"><div class="name-pre"><i class="ph-fill ph-folder-open"></i></div><input type="text" id="output-name" placeholder="nome_do_local" autocomplete="off"><div class="name-suf">.html</div></div>
+
+<!-- Novo campo: Descrição -->
+<div class="field-label">Descrição do Local/Voo (opcional)</div>
+<div class="desc-wrap">
+  <div class="desc-icon"><i class="ph-fill ph-text-aa"></i></div>
+  <input type="text" id="desc-input" placeholder="Ex: Sobrevoando a Floresta Amazônica" autocomplete="off">
+</div>
+
 <div id="progress-section"><div class="prog-row"><span id="progressMsg">Processando...</span><span id="progressPercent">0%</span></div><div class="prog-bg"><div id="progress-bar"></div></div></div>
 <div id="result-section">
 <div class="result-box"><div class="result-icon"><i class="ph-fill ph-check-circle"></i></div><div class="result-text"><strong style="color:var(--green2);display:block;">HTML gerado com sucesso!</strong><span id="resultInfo" style="font-size:12px;color:var(--muted);">-</span></div></div>
@@ -185,14 +205,52 @@ main{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 
 <div id="credito">
   <span>MIT License · Criado por Gilberto Milhomem Marinho Filho</span>
   <span>Modificado por Kuriakin Toscan · 2026</span>
+  <span>Metadados EXIF extraídos automaticamente</span>
 </div>
 
 <script>
-var dropZone=document.getElementById('drop-zone'),fileInput=document.getElementById('file-input'),previewArea=document.getElementById('preview-section'),previewImg=document.getElementById('preview-img'),ratioBadge=document.querySelector('.prev-badge'),metaName=document.getElementById('metaName'),metaSize=document.getElementById('metaSize'),metaDims=document.getElementById('metaDims'),metaRatio=document.getElementById('metaRatio'),outName=document.getElementById('output-name'),btnGen=document.getElementById('btn-generate'),progSec=document.getElementById('progress-section'),progBar=document.getElementById('progress-bar'),progTxt=document.getElementById('progressMsg'),progPct=document.getElementById('progressPercent'),resSec=document.getElementById('result-section'),resInfo=document.getElementById('resultInfo'),btnDl=document.getElementById('btn-download'),btnNew=document.getElementById('btn-new');
-var fileData=null,fileName=null,generatedBlob=null;
+// ============================================================
+//  Configuração e variáveis globais
+// ============================================================
+var dropZone = document.getElementById('drop-zone');
+var fileInput = document.getElementById('file-input');
+var previewArea = document.getElementById('preview-section');
+var previewImg = document.getElementById('preview-img');
+var ratioBadge = document.querySelector('.prev-badge');
+var metaName = document.getElementById('metaName');
+var metaSize = document.getElementById('metaSize');
+var metaDims = document.getElementById('metaDims');
+var metaRatio = document.getElementById('metaRatio');
+var metaModel = document.getElementById('metaModel');
+var metaDateTime = document.getElementById('metaDateTime');
+var metaGPS = document.getElementById('metaGPS');
+var outName = document.getElementById('output-name');
+var descInput = document.getElementById('desc-input');
+var btnGen = document.getElementById('btn-generate');
+var progSec = document.getElementById('progress-section');
+var progBar = document.getElementById('progress-bar');
+var progTxt = document.getElementById('progressMsg');
+var progPct = document.getElementById('progressPercent');
+var resSec = document.getElementById('result-section');
+var resInfo = document.getElementById('resultInfo');
+var btnDl = document.getElementById('btn-download');
+var btnNew = document.getElementById('btn-new');
 
-// ---------- TEMPLATE DO VISUALIZADOR FINAL (GERADO) ----------
-var VIEWER_TPL=`<!DOCTYPE html>
+var fileData = null;        // imagem em base64 (dataURL)
+var fileName = null;        // nome original
+var fileMeta = {            // metadados extraídos
+  model: '-',
+  dateTime: '-',
+  gps: '-',
+  lat: null,
+  lon: null
+};
+var generatedBlob = null;
+
+// ============================================================
+//  TEMPLATE DO VISUALIZADOR FINAL (com placeholders para metadados e descrição)
+// ============================================================
+var VIEWER_TPL = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -203,11 +261,12 @@ var VIEWER_TPL=`<!DOCTYPE html>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:#f4f5f7;color:#1e293b;font-family:'Inter', sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
 
-/* Cabeçalho do arquivo gerado: Otimizado, logo à esquerda, texto ao centro */
-.topbar{background:#ffffff;height:150px;padding:0 24px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:2px solid #cbd5e1;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
-.text-area{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;max-width:calc(100% - 320px);z-index:2;}
-.logo-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);height:100px;width:auto;object-fit:contain;z-index:3;}
-.logo-text-unified{font-weight:700;font-size:16px;color:#334155;letter-spacing:1px;line-height:1.2;text-align:center;}
+.topbar{background:#ffffff;height:auto;min-height:130px;padding:16px 24px;display:flex;align-items:center;justify-content:center;position:relative;border-bottom:2px solid #cbd5e1;flex-shrink:0;box-shadow:0 2px 10px rgba(0,0,0,0.05);flex-wrap:wrap;gap:8px;}
+.text-area{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;max-width:calc(100% - 320px);z-index:2;}
+.logo-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);height:80px;width:auto;object-fit:contain;z-index:3;}
+.logo-text-unified{font-weight:700;font-size:18px;color:#1e293b;letter-spacing:1px;line-height:1.2;}
+.sub-info{font-size:14px;color:#475569;display:flex;flex-wrap:wrap;justify-content:center;gap:12px 24px;margin-top:4px;}
+.sub-info span{background:#f1f5f9;padding:2px 12px;border-radius:20px;white-space:nowrap;}
 
 #viewer{flex:1;position:relative;background:#e2e8f0;}
 canvas{display:block;width:100%!important;height:100%!important;cursor:grab;}
@@ -229,8 +288,12 @@ canvas{display:block;width:100%!important;height:100%!important;cursor:grab;}
 <div class="topbar">
   <img src="__LOGO__" alt="IBAMA Logo" class="logo-icon">
   <div class="text-area">
-    <span class="logo-text-unified">Instituto Brasileiro do Meio Ambiente e dos Recursos Naturais Renováveis</span>
-    <span class="logo-text-unified">IBAMA</span>
+    <div class="logo-text-unified">__DESCRIPTION__</div>
+    <div class="sub-info">
+      <span>🛸 __DRONE_MODEL__</span>
+      <span>📅 __DATETIME__</span>
+      <span>📍 __GPS_COORDS__</span>
+    </div>
   </div>
 </div>
 <div id="viewer">
@@ -303,58 +366,238 @@ canvas{display:block;width:100%!important;height:100%!important;cursor:grab;}
 </body>
 </html>`;
 
-// Lógica de Eventos
-dropZone.onclick=function(e){if(e.target!==fileInput)fileInput.click();};
-dropZone.ondragover=function(e){e.preventDefault();this.classList.add('dragover');};
-dropZone.ondragleave=function(){this.classList.remove('dragover');};
-dropZone.ondrop=function(e){e.preventDefault();this.classList.remove('dragover');if(e.dataTransfer.files[0])proc(e.dataTransfer.files[0]);};
-fileInput.onchange=function(){if(this.files[0])proc(this.files[0]);};
-
-function proc(f){
-  reset();fileName=f.name.replace(/\.[^/.]+$/,"");outName.value=fileName;
-  var r=new FileReader();
-  r.onload=function(e){
-    fileData=e.target.result;previewImg.src=fileData;dropZone.style.display='none';previewArea.classList.add('visible');
-    var i=new Image();i.onload=function(){
-      var w=i.naturalWidth,h=i.naturalHeight,rt=w/h;
-      metaName.textContent=f.name;metaSize.textContent=fmtSize(f.size);metaDims.textContent=w+' x '+h+' px';
-      var rtS=rt.toFixed(2)+':1';metaRatio.textContent=rtS;
-      var ok=Math.abs(rt-2)<0.15;metaRatio.className='meta-value '+(ok?'ok':'warn');
-      ratioBadge.textContent=ok?'EQUIRRETANGULAR 2:1':'⚠️ Proporção '+rtS+' (ideal 2:1)';
-      btnGen.disabled=false;
-    };i.src=fileData;
-  };r.readAsDataURL(f);
-  fileInput.value=''; // Permite selecionar o mesmo arquivo novamente sem recarregar a página
+// ============================================================
+//  Funções auxiliares
+// ============================================================
+function fmtSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(2) + ' MB';
 }
 
-btnGen.onclick=function(){
-  if(!fileData)return;
-  this.style.display='none';progSec.classList.add('visible');setP(10,'Iniciando...');
-  var logoSrc=document.getElementById('ibama-logo-source').src;
-  setTimeout(function(){
-    setP(50,'Gerando arquivo...');
-    var name=outName.value.trim()||fileName;
-    
-    // Injeção cega via funções anônimas evita erro de Regex com strings gigantes
-    var html=VIEWER_TPL.replace(/__TITLE__/g,function(){return esc(name);})
-                       .replace(/__IMG__/g,function(){return fileData;})
-                       .replace(/__LOGO__/g,function(){return logoSrc;});
-                       
-    generatedBlob=new Blob([html],{type:'text/html;charset=utf-8'});
-    setP(100,'Concluído');
-    setTimeout(function(){progSec.classList.remove('visible');resSec.classList.add('visible');resInfo.textContent=name+'.html - '+(generatedBlob.size/1024).toFixed(0)+' KB';},300);
-  },500);
+function setProgress(pct, msg) {
+  progBar.style.width = pct + '%';
+  progTxt.textContent = msg;
+  progPct.textContent = pct + '%';
+}
+
+function resetUI() {
+  fileData = null;
+  generatedBlob = null;
+  btnGen.disabled = true;
+  btnGen.style.display = '';
+  progSec.classList.remove('visible');
+  resSec.classList.remove('visible');
+  previewArea.classList.remove('visible');
+  dropZone.style.display = '';
+  // limpa metadados
+  metaModel.textContent = '-';
+  metaDateTime.textContent = '-';
+  metaGPS.textContent = '-';
+}
+
+function escHTML(s) {
+  if (!s) return s;
+  return s.replace(/[&<>"]/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c;
+  });
+}
+
+// ============================================================
+//  Extração de EXIF com exif-js
+// ============================================================
+function extrairMetadados(file, callback) {
+  EXIF.getData(file, function() {
+    var meta = {
+      model: '-',
+      dateTime: '-',
+      gps: '-',
+      lat: null,
+      lon: null
+    };
+
+    try {
+      var model = EXIF.getTag(this, 'Model');
+      if (model) meta.model = model;
+
+      var dt = EXIF.getTag(this, 'DateTimeOriginal') || EXIF.getTag(this, 'DateTime');
+      if (dt) {
+        var partes = dt.split(' ');
+        if (partes.length === 2) {
+          var dataPart = partes[0].replace(/:/g, '/');
+          var dataObj = new Date(dataPart + ' ' + partes[1]);
+          if (!isNaN(dataObj)) {
+            meta.dateTime = dataObj.toLocaleString('pt-BR', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+          } else {
+            meta.dateTime = dt;
+          }
+        } else {
+          meta.dateTime = dt;
+        }
+      }
+
+      var lat = EXIF.getTag(this, 'GPSLatitude');
+      var latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+      var lon = EXIF.getTag(this, 'GPSLongitude');
+      var lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+      if (lat && lon && latRef && lonRef) {
+        function toDecimal(coord) {
+          return coord[0] + coord[1]/60 + coord[2]/3600;
+        }
+        var latDec = toDecimal(lat);
+        var lonDec = toDecimal(lon);
+        if (latRef === 'S') latDec = -latDec;
+        if (lonRef === 'W') lonDec = -lonDec;
+        meta.lat = latDec;
+        meta.lon = lonDec;
+        meta.gps = latDec.toFixed(6) + ', ' + lonDec.toFixed(6);
+      }
+    } catch (e) {
+      console.warn('Erro ao ler EXIF:', e);
+    }
+
+    callback(meta);
+  });
+}
+
+// ============================================================
+//  Processamento da imagem selecionada
+// ============================================================
+function processarArquivo(file) {
+  resetUI();
+  fileName = file.name.replace(/\.[^/.]+$/, '');
+  outName.value = fileName;
+
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fileData = e.target.result;
+    previewImg.src = fileData;
+    dropZone.style.display = 'none';
+    previewArea.classList.add('visible');
+
+    var img = new Image();
+    img.onload = function() {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var ratio = w / h;
+      metaName.textContent = file.name;
+      metaSize.textContent = fmtSize(file.size);
+      metaDims.textContent = w + ' x ' + h + ' px';
+      var ratioStr = ratio.toFixed(2) + ':1';
+      metaRatio.textContent = ratioStr;
+      var ok = Math.abs(ratio - 2) < 0.15;
+      metaRatio.className = 'meta-value ' + (ok ? 'ok' : 'warn');
+      ratioBadge.textContent = ok ? 'EQUIRRETANGULAR 2:1' : '⚠️ Proporção ' + ratioStr + ' (ideal 2:1)';
+      btnGen.disabled = false;
+    };
+    img.src = fileData;
+
+    extrairMetadados(file, function(meta) {
+      fileMeta = meta;
+      metaModel.textContent = meta.model || '-';
+      metaDateTime.textContent = meta.dateTime || '-';
+      metaGPS.textContent = meta.gps || '-';
+      if (meta.gps === '-') {
+        metaGPS.textContent = 'Não disponível';
+        metaGPS.className = 'meta-value na';
+      } else {
+        metaGPS.className = 'meta-value ok';
+      }
+    });
+  };
+  reader.readAsDataURL(file);
+  fileInput.value = '';
+}
+
+// ============================================================
+//  Eventos da interface
+// ============================================================
+dropZone.onclick = function(e) {
+  if (e.target !== fileInput) fileInput.click();
+};
+dropZone.ondragover = function(e) {
+  e.preventDefault();
+  this.classList.add('dragover');
+};
+dropZone.ondragleave = function() {
+  this.classList.remove('dragover');
+};
+dropZone.ondrop = function(e) {
+  e.preventDefault();
+  this.classList.remove('dragover');
+  if (e.dataTransfer.files.length) {
+    processarArquivo(e.dataTransfer.files[0]);
+  }
+};
+fileInput.onchange = function() {
+  if (this.files.length) {
+    processarArquivo(this.files[0]);
+  }
 };
 
-btnDl.onclick=function(){
-  if(!generatedBlob)return;
-  var a=document.createElement('a');a.href=URL.createObjectURL(generatedBlob);a.download=(outName.value.trim()||fileName)+'.html';a.click();
+// ============================================================
+//  Gerar o HTML final
+// ============================================================
+btnGen.onclick = function() {
+  if (!fileData) return;
+
+  this.style.display = 'none';
+  progSec.classList.add('visible');
+  setProgress(10, 'Iniciando...');
+
+  setTimeout(function() {
+    setProgress(40, 'Preparando metadados...');
+
+    var nomeBase = (outName.value.trim() || fileName);
+    var logoSrc = document.getElementById('ibama-logo-source').src;
+
+    // Obtém a descrição; se vazia, usa o padrão
+    var descricao = descInput.value.trim();
+    if (descricao === '') {
+      descricao = 'IBAMA · INSPEÇÃO AMBIENTAL';
+    }
+
+    var html = VIEWER_TPL
+      .replace(/__TITLE__/g, escHTML(nomeBase))
+      .replace(/__IMG__/g, fileData)
+      .replace(/__LOGO__/g, logoSrc)
+      .replace(/__DESCRIPTION__/g, escHTML(descricao))
+      .replace(/__DRONE_MODEL__/g, escHTML(fileMeta.model || 'Não disponível'))
+      .replace(/__DATETIME__/g, escHTML(fileMeta.dateTime || 'Não disponível'))
+      .replace(/__GPS_COORDS__/g, escHTML(fileMeta.gps || 'Não disponível'));
+
+    setProgress(80, 'Gerando arquivo...');
+
+    generatedBlob = new Blob([html], { type: 'text/html;charset=utf-8' });
+
+    setProgress(100, 'Concluído!');
+    setTimeout(function() {
+      progSec.classList.remove('visible');
+      resSec.classList.add('visible');
+      var sizeKB = (generatedBlob.size / 1024).toFixed(0);
+      resInfo.textContent = nomeBase + '.html - ' + sizeKB + ' KB';
+    }, 300);
+  }, 400);
 };
-btnNew.onclick=function(){location.reload();};
-function setP(pct,txt){progBar.style.width=pct+'%';progTxt.textContent=txt;progPct.textContent=pct+'%';}
-function reset(){fileData=null;generatedBlob=null;btnGen.disabled=true;btnGen.style.display='';progSec.classList.remove('visible');resSec.classList.remove('visible');}
-function fmtSize(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(1)+' KB';return (b/1048576).toFixed(2)+' MB';}
-function esc(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+// ============================================================
+//  Download e reinício
+// ============================================================
+btnDl.onclick = function() {
+  if (!generatedBlob) return;
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(generatedBlob);
+  a.download = (outName.value.trim() || fileName) + '.html';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+btnNew.onclick = function() {
+  location.reload();
+};
 </script>
 </body>
 </html>
