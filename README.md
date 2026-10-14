@@ -89,6 +89,3 @@ A versão 1.1 consolida correções estruturais cruciais de renderização, iden
 ## 📜 Licença
 
 Este projeto é disponibilizado sob a **Licença MIT** — permitindo uso, modificação e distribuição com preservação dos créditos autorais.
-
----
-*Tocantins — Co Yvy Ore Retama — Esta Terra É Nossa*
