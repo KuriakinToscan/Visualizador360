@@ -9,8 +9,7 @@
 * **Autor e Idealizador Original:** Gilberto Milhomem Marinho Filho.
 * **Modificações, Shader do Nadir e Evolução de Interface (2026):** Kuriakin Toscan.
 * **Versão Atual:** 1.1 (Outubro/2026)
-* **Instituição:** IBAMA — Instituto Brasileiro do Meio Ambiente e dos Recursos Naturais Renováveis.
-* **Unidade de Origem:** DIPAM-TO — Divisão de Proteção Ambiental do Tocantins.
+
 
 ---
 
