@@ -1,69 +1,96 @@
-# Visualizador 360º
-### Visualizador Esférico 360° 
+# Visualizador 360° — Versão 1.1
 
-O **Visualizador360** é uma ferramenta desenvolvida para suprir a lacuna de suporte nativo a imagens esféricas no Sistema Eletrônico de Informações (SEI). Ele permite converter imagens 360° captadas por drones em arquivos HTML autocontidos, onde a imagem é embutida via Base64, garantindo que o registro possa ser visualizado em qualquer navegador sem dependência de internet ou softwares externos.
+> **Ferramenta de geração de visualizadores panorâmicos esféricos autocontidos (HTML único) para documentação de registros aéreos e processos do Sistema Eletrônico de Informações (SEI).**
 
 ---
 
 ## ⚖️ Nota de Autoria e Modificação
-**Este projeto é uma versão modificada e aprimorada a partir do código original.**
 
 * **Autor e Idealizador Original:** Gilberto Milhomem Marinho Filho.
-* **Modificações e Evolução de Interface (2026):** Kuriakin Toscan.
-* **Aprimoramento e Novas Funcionalidades (EXIF, campo descrição, 2026):** Luiz Augusto - (github.com/laoc81).
+* **Modificações, Shader do Nadir e Evolução de Interface (2026):** Kuriakin Toscan.
+* **Versão Atual:** 1.1 (Outubro/2026)
 * **Instituição:** IBAMA — Instituto Brasileiro do Meio Ambiente e dos Recursos Naturais Renováveis.
 * **Unidade de Origem:** DIPAM-TO — Divisão de Proteção Ambiental do Tocantins.
 
 ---
 
 ## 🎯 Objetivo
-Democratizar a visualização de imagens 360° dentro do ambiente SEI, transformando registros aéreos imersivos em evidências documentais acessíveis a qualquer servidor público com acesso ao processo.
+
+Democratizar e viabilizar a visualização de fotos panorâmicas esféricas de 360° dentro do ambiente corporativo do **SEI (Sistema Eletrônico de Informações)**. 
+
+Imagens 360° captadas por drones (como DJI Mini, Air, Mavic, Matrice) normalmente exigem softwares especializados ou conexões externas. O **Visualizador 360°** converte essas capturas em arquivos `.html` independentes e autocontidos (com imagem, estilos, scripts e logotipo embutidos), transformando registros aéreos imersivos em **evidências documentais e probatórias natas-digitais** acessíveis a qualquer servidor ou cidadão com acesso ao processo.
+
+---
+
+## ✨ Novidades da Versão 1.1
+
+A versão 1.1 consolida correções estruturais cruciais de renderização, identidade visual e compatibilidade de codificação:
+
+1. **Eliminação da Distorção do Nadir (Solo/Polo Sul do Drone):**
+   - Substituição do mapeamento UV padrão de malha facetada por **Shader Esférico Per-Pixel customizado (`THREE.ShaderMaterial` via GLSL)**.
+   - Cálculo trigonométrico contínuo de direção esférica:
+     $$\text{lon} = \operatorname{atan2}(x, -z), \quad \text{lat} = \operatorname{asin}(\operatorname{clamp}(y, -1.0, 1.0))$$
+   - Fim do *polar pinch* (beliscão/vórtice polar) logo abaixo do drone, reproduzindo a mesma fidelidade de visualização observada nos rádios DJI (DJI RC / Fly App).
+   - Filtragem bilinear pura (`THREE.LinearFilter`) sem mipmaps no shader para evitar costuras (*seams*) ou desfoque no solo.
+   - Limites de inclinação vertical da câmera ampliados para **-89.9° até +89.9°** com rotação Euler `'YXZ'`.
+
+2. **Logo Vetorial do IBAMA Embutido (Offline-First / Zero Dependências):**
+   - Incorporação do logotipo oficial vetorial em formato SVG diretamente no código-fonte via Data URI Base64.
+   - O gerador e todos os arquivos HTML produzidos funcionam 100% offline sem depender de requisições a imagens externas locais ou servidores de terceiros.
+
+3. **Correção de Codificação UTF-8 e Inclusão de BOM:**
+   - Correção total de caracteres acentuados da língua portuguesa (*Renováveis*, *Dimensões*, *Proporção*, *Saída*) e símbolos (`360°`, `▶`, `−`, `+`, `⟳`).
+   - Inserção do **Byte Order Mark (BOM) UTF-8 (`\uFEFF`)** no Blob do gerador, garantindo que o Windows e o SEI interpretem os arquivos gerados sem erros de *mojibake*.
+
+4. **Correção na Inicialização e Controles:**
+   - Padronização dos shaders em declaração contínua de strings, prevenindo falhas de quebra de linha em navegadores legados.
+   - Botão interativo de entrada `▶ Abrir visualização 360°` com transição suave e carregamento assíncrono.
+
+---
 
 ## 🛠️ Características Técnicas
-* **Arquitetura Zero Dependências:** O visualizador gerado é autossuficiente e funciona em máquinas offline.
-* **Motor de Renderização:** Utiliza a biblioteca **Three.js (r128)** para projeção esférica via WebGL.
-* **Alta Fidelidade:** Esfera configurada com 96×64 segmentos para minimizar distorções nos polos da imagem.
-* **Navegação Suave:** Implementação de interpolação de movimento (lerp) para evitar saltos bruscos no arraste.
-* **Leitura de EXIF:** Integração com a biblioteca `exif-js` para extração automática de metadados diretamente no navegador.
-* **Extração automática de metadados EXIF** – ao carregar a imagem, o sistema lê e exibe:
-  - Modelo do drone utilizado;
-  - Data e hora da captura;
-  - Coordenadas GPS (latitude/longitude);
-- **Campo de descrição personalizável** – o usuário pode adicionar um texto descritivo que será exibido no cabeçalho do visualizador gerado, substituindo o texto padrão "IBAMA · INSPEÇÃO AMBIENTAL".
-- **Metadados embutidos no HTML final** – todas as informações extraídas são inseridas automaticamente no cabeçalho do arquivo gerado, documentando a origem da imagem.
+
+* **Arquitetura Autocontida:** Arquivo único `.html` contendo código, estilos, logo vetorial e imagem em Base64.
+* **Motor Gráfico:** **Three.js (r128)** com renderização WebGL acelerada por hardware.
+* **Shader Esférico Per-Pixel:** Projeção matemática equirretangular em *fragment shader*.
+* **Navegação Suave e Responsiva:**
+  * Interpolação suave de câmera (*lerp*).
+  * Suporte híbrido completo (mouse, trackpad e gestos touch em dispositivos móveis).
+  * Bússola indicadora de orientação magnética em tempo real.
+  * Ajuste de campo de visão (FOV / Zoom de 30° a 110°).
+  * Modo de rotação automática panorâmica.
+
+---
 
 ## 🚀 Como Utilizar
 
-### 1. Gerar o Visualizador
-1.  Abra o arquivo `360_Gerador.html` no Google Chrome ou Microsoft Edge.
-2.  Arraste a sua imagem 360° (proporção 2:1) para a área indicada.
-3.  Confira os metadados e o nome de saída.
-4.  **(Opcional)** Preencha o campo **"Descrição"** com um texto personalizado que aparecerá no cabeçalho do visualizador gerado. Caso deixe em branco, será usado o padrão `"IBAMA"`
-5.  Clique em **"Gerar Visualizador 360°"** e baixe o arquivo HTML final.
+### 1. Gerar o Visualizador 360°
+1. Abra o arquivo `360_Gerador.html` em qualquer navegador moderno (Google Chrome, Microsoft Edge, Mozilla Firefox).
+2. Arraste e solte a imagem panorâmica equirretangular (proporção **2:1**, preferencialmente JPG captado pelo drone).
+3. Verifique as dimensões e proporção no card de metadados.
+4. Digite o nome de saída desejado e clique em **"Gerar Visualizador"**.
+5. Clique em **"Baixar HTML"**.
 
-### 2. Anexar no SEI
-1.  No processo desejado, selecione **"Incluir Documento"** e escolha a opção **"Externo"**.
-2.  No campo "Formato", selecione obrigatoriamente **"Nato-digital"**.
-3.  Faça o upload do arquivo HTML gerado.
-4.  Ao clicar no documento na árvore do processo, o SEI abrirá o visualizador interativo diretamente no navegador.
+### 2. Anexar o Visualizador no SEI
+1. No processo administrativo correspondente, clique em **"Incluir Documento"**.
+2. Escolha o tipo de documento **"Externo"**.
+3. No campo **"Tipo de Conferência / Formato"**, selecione obrigatoriamente **"Nato-digital"**.
+4. No campo **"Remetente"**, preencha com a unidade ou servidor responsável.
+5. Faça o upload do arquivo `.html` gerado.
+6. Ao abrir o documento na árvore processual do SEI, o visualizador interativo 360° é executado diretamente na área de visualização do navegador.
 
-## ⚠️ Solução de Problemas
-* **Imagem Distorcida:** Verifique se a foto original foi captada no modo "Esférico/Panorâmico" do drone (proporção 2:1).
-* **Arquivo Muito Grande para o SEI:** O limite prático de upload costuma ser de 5 a 8 MB. Se necessário, redimensione a imagem original para 4096×2048 px antes de processar no gerador.
-* **Tela Preta no Visualizador:** Pode indicar que a biblioteca Three.js não foi carregada devido a bloqueios de rede no domínio da CDN.
+---
 
-## 🤝 Como Contribuir
-Contribuições são bem-vindas! Para propor melhorias, correções ou novas funcionalidades:
-1. **Faça um fork** deste repositório.
-2. **Crie uma branch** para sua alteração (`git checkout -b minha-melhoria`).
-3. **Faça as alterações** e commit (`git commit -m "feat: descrição da melhoria"`).
-4. **Envie para o seu fork** (`git push origin minha-melhoria`).
-5. **Abra um Pull Request** descrevendo claramente o que foi alterado e por quê.
+## 💡 Dicas e Melhores Práticas
 
-Agradecemos antecipadamente por sua colaboração!
+* **Resolução Recomendada para o SEI:** O SEI pode impor limites de tamanho em anexos (tipicamente entre 10 MB e 30 MB dependendo da infraestrutura do órgão). Se a foto original do drone (ex.: 8192×4096 px com ~15 MB) gerar um HTML grande demais, utilize imagens redimensionadas para 4096×2048 px ou 5376×2688 px, que mantêm altíssima nitidez visual e resultam em arquivos HTML de apenas 2 a 5 MB.
+* **Proporção da Foto:** Assegure-se de que a imagem panorâmica esteja na proporção 2:1 (ex.: 8192×4096, 4096×2048), gerada pelo modo de captura panorâmica 360° / Esférica da aeronave.
 
+---
 
 ## 📜 Licença
-Este projeto é distribuído sob a **Licença MIT**.
 
+Este projeto é disponibilizado sob a **Licença MIT** — permitindo uso, modificação e distribuição com preservação dos créditos autorais.
 
+---
+*Tocantins — Co Yvy Ore Retama — Esta Terra É Nossa*

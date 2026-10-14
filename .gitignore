@@ -1,0 +1,16 @@
+# Ambientes e Editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# Python
+__pycache__/
+*.pyc
+extract_logo.py
+
+# Arquivos de Sistema e Temporários
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
