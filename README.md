@@ -27,8 +27,7 @@ A versão 1.1 consolida correções estruturais cruciais de renderização, iden
 
 1. **Eliminação da Distorção do Nadir (Solo/Polo Sul do Drone):**
    - Substituição do mapeamento UV padrão de malha facetada por **Shader Esférico Per-Pixel customizado (`THREE.ShaderMaterial` via GLSL)**.
-   - Cálculo trigonométrico contínuo de direção esférica:
-     $$\text{lon} = \operatorname{atan2}(x, -z), \quad \text{lat} = \operatorname{asin}(\operatorname{clamp}(y, -1.0, 1.0))$$
+   - Cálculo trigonométrico contínuo de direção esférica.
    - Fim do *polar pinch* (beliscão/vórtice polar) logo abaixo do drone, reproduzindo a mesma fidelidade de visualização observada nos rádios DJI (DJI RC / Fly App).
    - Filtragem bilinear pura (`THREE.LinearFilter`) sem mipmaps no shader para evitar costuras (*seams*) ou desfoque no solo.
    - Limites de inclinação vertical da câmera ampliados para **-89.9° até +89.9°** com rotação Euler `'YXZ'`.
